@@ -29,7 +29,7 @@ python -m fantasy_experiment.run_exp1 --toy      # demo, no data needed
 python -m fantasy_experiment.download_data       # saves data/raw/gamelog_2025-26.csv
 python -m fantasy_experiment.draft --cutoff 2026-01-12     # data/rosters.csv, outputs/draft_order.csv
 python -m fantasy_experiment.run_exp1 --week-start 2026-01-12 --week-end 2026-01-18        # main matchup
-python -m fantasy_experiment.run_exp1_pairs --week-start 2026-01-12 --week-end 2026-01-18  # all 15 pairs
+python -m fantasy_experiment.run_exp1_pairs --week-start 2026-01-12 --week-end 2026-01-18  # all 30 ordered pairs
 
 # tests
 python -m unittest discover -s fantasy_experiment/tests -t .
@@ -74,8 +74,9 @@ simulated estimate inside its 95% CI of that value.
   the formula, not from simulation. The team earlier in name order chooses its
   lineup; the other team's lineup is fixed. The rule picked T1 vs T3 (761.0 vs
   761.3; the next closest pair differs by 19.7).
-- **All-pairs check:** Experiment 1 is also run for all 15 pairs, with the
-  same direction rule. All 78 players are simulated once, so every pair uses the same
+- **All-pairs check:** Experiment 1 is also run for all 30 ordered pairs. Each of
+  the 15 pairs is run in both directions (each team takes a turn choosing its lineup
+  against the other's fixed lineup). All 78 players are simulated once, so every pair uses the same
   simulated weeks.
 - **Points pick** = the lineup with the highest theoretical expected points (no
   Monte Carlo noise). **Win-probability pick** = the lineup with the highest
@@ -105,6 +106,6 @@ into the functions. Results are identical on every run.
 - [x] Availability model (tested on synthetic data)
 - [x] Real NBA game logs (2025-26, 26,651 player-games, 1,230 games)
 - [x] 6-team seeded snake draft from the game log; placeholder points scoring (documented)
-- [x] Experiment 1 on a real week (Jan 12-18, 2026): main matchup and all 15 pairs
+- [x] Experiment 1 on a real week (Jan 12-18, 2026): main matchup and all 30 ordered pairs
 - [ ] Experiments 2 and 3, sensitivity analysis
 - [ ] Backtest, limitations, draft report (Nov 30), final report + video (Dec 16)

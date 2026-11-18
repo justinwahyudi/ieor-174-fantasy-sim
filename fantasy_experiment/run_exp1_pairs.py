@@ -1,17 +1,18 @@
-"""Experiment 1 for every pair of teams in the league.
+"""Experiment 1 for every ordered pair of teams in the league (both directions).
 
 Run:  python -m fantasy_experiment.run_exp1_pairs --week-start 2026-01-12 --week-end 2026-01-18
 
-For each of the C(6,2) = 15 pairs, the team earlier in name order chooses its
-lineup and the other team's lineup is fixed (top 5 by expected points). All
-pairs use ONE simulation of every drafted player (common random numbers), so
+For each of the 6 x 5 = 30 ordered pairs, Team X chooses its lineup and Team
+Y's lineup is fixed (top 5 by expected points). Each unordered pair is run in
+both directions, since the favourite and the underdog face different
+decisions. All pairs use ONE simulation of every drafted player (common random numbers), so
 the main matchup's numbers here equal run_exp1's.
 
 Saves outputs/exp1_pairs.csv and prints how often the win-probability pick
 differs from the expected-points pick, and the paired gain when it does.
 """
 import argparse
-from itertools import combinations
+from itertools import permutations
 
 import numpy as np
 import pandas as pd
@@ -24,10 +25,11 @@ from .run_exp1 import add_common_args, build_inputs, check_args, roster_of
 
 def run_all_pairs(players, rosters, totals, k):
     rows = []
-    for tx, ty in combinations(sorted(rosters["Team"].unique()), 2):
+    for tx, ty in permutations(sorted(rosters["Team"].unique()), 2):
         y_lineup = opponent_lineup(players, rosters, ty, k)
         _, s = evaluate_matchup(totals, players, roster_of(rosters, tx), y_lineup, k)
         rows.append({"Team_X": tx, "Team_Y": ty,
+                     "Pair": "-".join(sorted((tx, ty))),
                      "Exp_X": team_expected_total(players, roster_of(rosters, tx), k),
                      "Exp_Y": team_expected_total(players, roster_of(rosters, ty), k), **s})
     df = pd.DataFrame(rows)
@@ -56,7 +58,7 @@ def main(argv=None):
                "Differ", "Diff", "Diff_CI_low", "Diff_CI_high", "Main"]]
     print(show.round(4).to_string(index=False))
     d = df[df["Differ"]]
-    print(f"\nPairs: {len(df)}   (n={args.n}, seed={args.seed})")
+    print(f"\nOrdered pairs (decisions): {len(df)}   (n={args.n}, seed={args.seed})")
     print(f"Win-probability pick differs from points pick: {len(d)} of {len(df)}")
     if len(d):
         print(f"  Gain when they differ: mean {d['Diff'].mean():+.4f}, "

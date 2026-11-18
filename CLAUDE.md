@@ -43,7 +43,7 @@ optimization, correlated teammates, 9-category scoring.
   - `model.py` weekly simulation with availability (Bernoulli games, normal scores)
   - `lineups.py` enumerate lineups, win probability, paired difference CIs
   - `draft.py` seeded 6-team snake draft -> `data/rosters.csv`, `outputs/draft_order.csv`
-  - `run_exp1.py` Experiment 1 (main matchup = closest expected totals); `run_exp1_pairs.py` all 15 pairs
+  - `run_exp1.py` Experiment 1 (main matchup = closest expected totals); `run_exp1_pairs.py` all 30 ordered pairs
   - `demo.py` toy rosters (`--toy`)
   - `tests/` run: `python -m unittest discover -s fantasy_experiment/tests -t .`
 - `data/` (raw data git-ignored), `outputs/` (figures and tables for the report), `notebooks/` (exploration only).
@@ -64,7 +64,7 @@ availability model, lineup enumeration, paired CIs, Experiment 1 script, tests (
 verified on demo data and a synthetic game log. 2025-26 game log downloaded (nba_api,
 with retry). Rosters come from a 6-team seeded snake draft (`draft.py`, noise SD 2.0, seed 42).
 Experiment 1 was run on Jan 12-18, 2026 for the main matchup (T1 vs T3, chosen before
-simulating by the closest-expected-totals rule) and for all 15 pairs. Scoring is the
+simulating by the closest-expected-totals rule) and for all 30 ordered pairs (both directions). Scoring is the
 placeholder points formula (the user's real league is 9-cat; documented as an assumption).
 15 tests pass.
 

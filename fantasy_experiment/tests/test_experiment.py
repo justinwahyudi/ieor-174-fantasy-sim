@@ -180,3 +180,12 @@ class TestScoring(unittest.TestCase):
             self.assertTrue((gl["NBA_FANTASY_PTS"] == -999.0).all())
             expected = sum(gl[c] * w for c, w in config.SCORING.items())
             np.testing.assert_allclose(gl["FANTASY_PTS"], expected)
+
+
+class TestAllPairs(unittest.TestCase):
+    def test_both_directions(self):
+        from fantasy_experiment.run_exp1_pairs import run_all_pairs
+        players, rosters = toy_players()
+        totals = simulate_weekly_totals(players, 2000, np.random.default_rng(0))
+        df = run_all_pairs(players, rosters, totals, 3)
+        self.assertEqual(sorted(zip(df["Team_X"], df["Team_Y"])), [("X", "Y"), ("Y", "X")])
