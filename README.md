@@ -25,10 +25,11 @@ Fantasy experiment (`fantasy_experiment/`):
 ```
 python -m fantasy_experiment.run_exp1 --toy      # demo, no data needed
 
-# real data (needs internet once):
-python -m fantasy_experiment.download_data       # saves data/raw/gamelog_<season>.csv
-# create data/rosters.csv with columns Team (X or Y), Player [, Starter]
-python -m fantasy_experiment.run_exp1 --week-start 2026-01-12 --week-end 2026-01-18
+# real data (needs internet once; retries if stats.nba.com times out):
+python -m fantasy_experiment.download_data       # saves data/raw/gamelog_2025-26.csv
+python -m fantasy_experiment.draft --cutoff 2026-01-12     # data/rosters.csv, outputs/draft_order.csv
+python -m fantasy_experiment.run_exp1 --week-start 2026-01-12 --week-end 2026-01-18        # main matchup
+python -m fantasy_experiment.run_exp1_pairs --week-start 2026-01-12 --week-end 2026-01-18  # all 15 pairs
 
 # tests
 python -m unittest discover -s fantasy_experiment/tests -t .
@@ -52,6 +53,38 @@ simulated estimate inside its 95% CI of that value.
 
 ## Model assumptions
 
+- **Scoring is a placeholder points formula, not a real league's.** Fantasy
+  points per game = 1.0 PTS + 1.2 REB + 1.5 AST + 3 STL + 3 BLK - 1 TOV
+  + 0.5 3PM (`config.SCORING`). The author's real Yahoo league is 9-category, which
+  this project does not model (9-cat is a stretch goal). The NBA's own
+  `FANTASY_PTS` column from nba_api is ignored (kept as `NBA_FANTASY_PTS`).
+- **Rosters come from a simulated 6-team league draft** (`fantasy_experiment/draft.py`).
+  The pool is every player with at least 25 games before the cutoff (Jan 12, 2026):
+  302 players. A player's value is his average fantasy points per game played
+  before the cutoff. Each team gets its own draft board, equal to value plus
+  Normal(0, 2.0) noise, drawn once per (team, player) from `default_rng(42)`.
+  The draft is a snake (T1..T6, T6..T1, ...) for 13 rounds: 78 players, 13 per
+  team. Each pick takes the available player ranked highest on that team's
+  board. Team names are draft slots (T1 picks first). Every pick is recorded in
+  `outputs/draft_order.csv`. Names come straight from the game log.
+  `Starter` is left blank, so an opponent's lineup is its top 5 by expected weekly points.
+- **Main matchup rule (fixed before any simulation was run):** the two teams whose
+  expected weekly totals for Jan 12-18 are closest. A team's expected total is the
+  sum of Mean x Avail x Games over its best 5 by that same quantity, computed from
+  the formula, not from simulation. The team earlier in name order chooses its
+  lineup; the other team's lineup is fixed. The rule picked T1 vs T3 (761.0 vs
+  761.3; the next closest pair differs by 19.7).
+- **All-pairs check:** Experiment 1 is also run for all 15 pairs, with the
+  same direction rule. All 78 players are simulated once, so every pair uses the same
+  simulated weeks.
+- **Points pick** = the lineup with the highest theoretical expected points (no
+  Monte Carlo noise). **Win-probability pick** = the lineup with the highest
+  simulated P(win). If the two match, the reported paired CI compares the pick
+  with the runner-up.
+- **Experiment 1 week:** Mon Jan 12 to Sun Jan 18, 2026 (2025-26 season).
+  Estimates use only games before Jan 12. Games in the week = games the
+  player's team actually played that week (from the log).
+
 - A scheduled game is played with probability Avail (games played / team games);
   if played, the fantasy score is Normal(mean, std), clipped at 0.
 - Games and players are independent; no teammate correlation.
@@ -70,6 +103,8 @@ into the functions. Results are identical on every run.
 - [x] Convergence check (half-width shrinks like 1/sqrt(n))
 - [x] Lineup comparison with common random numbers (demo and synthetic data only)
 - [x] Availability model (tested on synthetic data)
-- [ ] Real NBA game logs, real rosters, league scoring formula
-- [ ] Experiment 1 on a real week; Experiments 2 and 3, sensitivity analysis
+- [x] Real NBA game logs (2025-26, 26,651 player-games, 1,230 games)
+- [x] 6-team seeded snake draft from the game log; placeholder points scoring (documented)
+- [x] Experiment 1 on a real week (Jan 12-18, 2026): main matchup and all 15 pairs
+- [ ] Experiments 2 and 3, sensitivity analysis
 - [ ] Backtest, limitations, draft report (Nov 30), final report + video (Dec 16)

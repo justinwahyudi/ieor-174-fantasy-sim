@@ -1,5 +1,4 @@
 numpy>=1.26
 pandas>=2.0
 matplotlib>=3.8
-# Add when you start on real data:
-# nba_api
+nba_api>=1.12  # real game logs (fantasy_experiment.download_data)

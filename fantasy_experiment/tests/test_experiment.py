@@ -115,3 +115,68 @@ class TestDataPrep(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDraft(unittest.TestCase):
+    def setUp(self):
+        from fantasy_experiment.draft import snake_draft
+        rng = np.random.default_rng(42)
+        n = 120
+        self.est = pd.DataFrame({"Player": [f"P{i:03d}" for i in range(n)],
+                                 "Mean_PPG": np.linspace(60, 20, n),
+                                 "GP": [30] * (n - 10) + [3] * 10})   # last 10 ineligible
+        self.draft = snake_draft(self.est, rng, n_teams=6, n_rounds=13)
+
+    def test_snake_order(self):
+        from fantasy_experiment.draft import snake_order
+        order = snake_order(6, 3)
+        self.assertEqual(order[:6], ["T1", "T2", "T3", "T4", "T5", "T6"])
+        self.assertEqual(order[6:12], ["T6", "T5", "T4", "T3", "T2", "T1"])
+        self.assertEqual(order[12:], ["T1", "T2", "T3", "T4", "T5", "T6"])
+        self.assertEqual(list(self.draft["Team"]), snake_order(6, 13))
+
+    def test_no_player_drafted_twice(self):
+        self.assertEqual(len(self.draft), 78)
+        self.assertEqual(self.draft["Player"].nunique(), 78)
+
+    def test_each_roster_has_13(self):
+        self.assertEqual(self.draft.groupby("Team").size().to_dict(),
+                         {f"T{i}": 13 for i in range(1, 7)})
+
+    def test_min_games_enforced(self):
+        ineligible = set(self.est.loc[self.est["GP"] < 25, "Player"])
+        self.assertFalse(ineligible & set(self.draft["Player"]))
+
+    def test_seeded_and_noise_free_case(self):
+        from fantasy_experiment.draft import snake_draft
+        again = snake_draft(self.est, np.random.default_rng(42))
+        pd.testing.assert_frame_equal(self.draft, again)        # same seed, same draft
+        exact = snake_draft(self.est, np.random.default_rng(0), noise_sd=0.0)
+        self.assertEqual(list(exact["Player"]), list(self.est["Player"][:78]))  # strict rank order
+
+
+class TestMatchupSelection(unittest.TestCase):
+    def test_closest_pair_uses_expected_totals(self):
+        from fantasy_experiment.lineups import closest_pair
+        players = pd.DataFrame({"Player": ["a", "b", "c", "d", "e", "f"],
+                                "Mean_PPG": [50, 10, 40, 10, 41, 10],
+                                "Avail": [1.0] * 6, "Games": [3] * 6})
+        rosters = pd.DataFrame({"Team": ["T1", "T1", "T2", "T2", "T3", "T3"],
+                                "Player": list("abcdef")})
+        (x, y), totals = closest_pair(players, rosters, k=1)
+        self.assertEqual((x, y), ("T2", "T3"))
+        self.assertAlmostEqual(totals["T1"], 150.0)
+
+
+class TestScoring(unittest.TestCase):
+    def test_load_gamelog_overwrites_api_fantasy_column(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "gl.csv"
+            synthetic_gamelog(path)
+            df = pd.read_csv(path)
+            df["FANTASY_PTS"] = -999.0          # nba_api's own column
+            df.to_csv(path, index=False)
+            gl = load_gamelog(path)
+            self.assertTrue((gl["NBA_FANTASY_PTS"] == -999.0).all())
+            expected = sum(gl[c] * w for c, w in config.SCORING.items())
+            np.testing.assert_allclose(gl["FANTASY_PTS"], expected)

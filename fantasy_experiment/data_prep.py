@@ -15,7 +15,13 @@ from .scoring import add_fantasy_points
 
 
 def load_gamelog(path):
+    """Read the game log and add FANTASY_PTS under OUR scoring (config.SCORING).
+
+    nba_api already ships a FANTASY_PTS column using the NBA's own formula; it
+    is kept as NBA_FANTASY_PTS so it can never be confused with ours.
+    """
     gl = pd.read_csv(path, parse_dates=["GAME_DATE"])
+    gl = gl.rename(columns={"FANTASY_PTS": "NBA_FANTASY_PTS"})
     return add_fantasy_points(gl)
 
 

@@ -3,10 +3,18 @@
 Demo (no data needed):
     python -m fantasy_experiment.run_exp1 --toy
 
-Real week (after download_data and creating data/rosters.csv):
+Real week (after download_data and draft):
     python -m fantasy_experiment.run_exp1 --week-start 2026-01-12 --week-end 2026-01-18
 
-Saves outputs/exp1_lineups.csv (all lineups ranked by win probability).
+Matchup: --team-x/--team-y, or by default the two teams whose EXPECTED weekly
+totals (best 5 by expected points, from the formula, no simulation) are
+closest; Team X is the one earlier in name order. Team X chooses its lineup;
+Team Y's lineup is fixed (Starter=1 in rosters.csv, else its top 5 by expected points).
+
+Every drafted player is simulated once from one rng, so all matchups (here and
+in run_exp1_pairs) share the same simulated weeks.
+
+Saves outputs/exp1_lineups.csv (all Team X lineups ranked by win probability).
 """
 import argparse
 
@@ -16,9 +24,7 @@ import pandas as pd
 from . import config
 from .data_prep import attach_schedule, load_gamelog, player_estimates
 from .demo import toy_players
-from .lineups import (
-    compare_lineups, lineup_total, paired_win_diff, top_k_by_expected,
-)
+from .lineups import closest_pair, evaluate_matchup, opponent_lineup
 from .model import simulate_weekly_totals
 
 
@@ -37,51 +43,48 @@ def build_inputs(args):
     return players, rosters[rosters["Player"].isin(players["Player"])]
 
 
+def roster_of(rosters, team):
+    return list(rosters.loc[rosters["Team"] == team, "Player"])
+
+
 def run(args):
     players, rosters = build_inputs(args)
     k = args.starters
-    x_roster = list(rosters.loc[rosters["Team"] == "X", "Player"])
-    y_roster = list(rosters.loc[rosters["Team"] == "Y", "Player"])
+    (auto_x, auto_y), team_totals = closest_pair(players, rosters, k)
+    tx, ty = args.team_x or auto_x, args.team_y or auto_y
+    rule = "given on command line" if args.team_x else "closest expected weekly totals"
 
     rng = np.random.default_rng(args.seed)
     totals = simulate_weekly_totals(players, args.n, rng)   # one shared scenario table
 
-    # Opponent lineup: marked Starter=1 in rosters.csv, else the top-k by expected points
-    y_players = players[players["Player"].isin(y_roster)]
-    if "Starter" in rosters.columns and rosters.loc[rosters["Team"] == "Y", "Starter"].sum() == k:
-        y_lineup = list(rosters.loc[(rosters["Team"] == "Y") & (rosters["Starter"] == 1), "Player"])
-    else:
-        y_lineup = top_k_by_expected(y_players, k)
-    opp_total = lineup_total(totals, y_lineup)
-
-    table = compare_lineups(totals, x_roster, k, opp_total)
-    best_pwin = table.iloc[0]
-    best_pts = table.loc[table["Expected_Pts"].idxmax()]
+    y_lineup = opponent_lineup(players, rosters, ty, k)
+    table, s = evaluate_matchup(totals, players, roster_of(rosters, tx), y_lineup, k)
 
     config.OUTPUT_DIR.mkdir(exist_ok=True)
     out = config.OUTPUT_DIR / "exp1_lineups.csv"
     table.to_csv(out, index=False)
 
-    print(f"Opponent lineup: {', '.join(y_lineup)}")
-    print(f"Opponent mean {opp_total.mean():.1f}, SD {opp_total.std(ddof=1):.1f}   (n={args.n}, seed={args.seed})")
-    print(f"{len(table)} candidate lineups of {k} from {len(x_roster)} players\n")
-    show = table.head(5)[["Lineup", "Expected_Pts", "SD", "P_win", "CI_low", "CI_high", "Rank_Pts", "Rank_Pwin"]]
+    print("Expected weekly totals (best 5 by expected points): "
+          + ", ".join(f"{t} {v:.1f}" for t, v in team_totals.items()))
+    print(f"Matchup: {tx} (chooses) vs {ty} (fixed)   [{rule}]")
+    print(f"Opponent lineup: {s['Opp_Lineup']}")
+    print(f"Opponent mean {s['Opp_Mean']:.1f}, SD {s['Opp_SD']:.1f}   (n={args.n}, seed={args.seed})")
+    print(f"{len(table)} candidate lineups of {k} from {len(roster_of(rosters, tx))} players\n")
+    show = table.head(5)[["Lineup", "Theory_Pts", "Expected_Pts", "SD", "P_win",
+                          "CI_low", "CI_high", "Rank_Pts", "Rank_Pwin"]]
     print(show.round(3).to_string(index=False))
 
-    print(f"\nBest by expected points: {best_pts['Lineup']}  (P_win {best_pts['P_win']:.3f})")
-    print(f"Best by win probability: {best_pwin['Lineup']}  (P_win {best_pwin['P_win']:.3f})")
-    if best_pts["Lineup"] == best_pwin["Lineup"]:
+    print(f"\nBest by expected points: {s['Best_Pts']}  (P_win {s['P_win_pts_pick']:.3f})")
+    print(f"Best by win probability: {s['Best_Pwin']}  (P_win {s['P_win_best']:.3f})")
+    if not s["Differ"]:
         print("Same lineup: simulation did not change the decision here.")
-    else:
-        diff, (lo, hi) = paired_win_diff(
-            totals, best_pwin["Lineup"].split(", "), best_pts["Lineup"].split(", "), opp_total)
-        print(f"Win-prob gain of the simulation pick: {diff:+.4f}  95% CI ({lo:+.4f}, {hi:+.4f})  (paired, same weeks)")
+    print(f"Paired P_win difference, best minus {s['Compared_To']}: {s['Diff']:+.4f}  "
+          f"95% CI ({s['Diff_CI_low']:+.4f}, {s['Diff_CI_high']:+.4f})  (same simulated weeks)")
     print(f"\nSaved {out}")
     return table
 
 
-def parse_args(argv=None):
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+def add_common_args(p):
     p.add_argument("--toy", action="store_true", help="use hypothetical demo players")
     p.add_argument("--gamelog", default=str(config.RAW_GAMELOG))
     p.add_argument("--rosters", default=str(config.ROSTERS_CSV))
@@ -91,10 +94,23 @@ def parse_args(argv=None):
     p.add_argument("--n", type=int, default=config.N_SIM)
     p.add_argument("--seed", type=int, default=config.SEED)
     p.add_argument("--starters", type=int, default=config.N_STARTERS)
-    args = p.parse_args(argv)
+
+
+def check_args(p, args):
     if not args.toy and not (args.week_start and args.week_end):
         p.error("give --week-start and --week-end (or use --toy)")
     return args
+
+
+def parse_args(argv=None):
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    add_common_args(p)
+    p.add_argument("--team-x", help="team that chooses its lineup (default: closest pair)")
+    p.add_argument("--team-y", help="opponent with a fixed lineup")
+    args = p.parse_args(argv)
+    if bool(args.team_x) != bool(args.team_y):
+        p.error("give both --team-x and --team-y, or neither")
+    return check_args(p, args)
 
 
 if __name__ == "__main__":

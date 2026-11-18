@@ -42,7 +42,9 @@ optimization, correlated teammates, 9-category scoring.
   - `data_prep.py` per-player mean/std/availability and games in a week
   - `model.py` weekly simulation with availability (Bernoulli games, normal scores)
   - `lineups.py` enumerate lineups, win probability, paired difference CIs
-  - `run_exp1.py` Experiment 1; `demo.py` toy rosters (`--toy`)
+  - `draft.py` seeded 6-team snake draft -> `data/rosters.csv`, `outputs/draft_order.csv`
+  - `run_exp1.py` Experiment 1 (main matchup = closest expected totals); `run_exp1_pairs.py` all 15 pairs
+  - `demo.py` toy rosters (`--toy`)
   - `tests/` run: `python -m unittest discover -s fantasy_experiment/tests -t .`
 - `data/` (raw data git-ignored), `outputs/` (figures and tables for the report), `notebooks/` (exploration only).
 
@@ -59,14 +61,16 @@ optimization, correlated teammates, 9-category scoring.
 
 Done: toy Stages 1-4 validated; convergence plot; `fantasy_experiment` scaffold with
 availability model, lineup enumeration, paired CIs, Experiment 1 script, tests (8 pass),
-verified on demo data and a synthetic game log only.
+verified on demo data and a synthetic game log. 2025-26 game log downloaded (nba_api,
+with retry). Rosters come from a 6-team seeded snake draft (`draft.py`, noise SD 2.0, seed 42).
+Experiment 1 was run on Jan 12-18, 2026 for the main matchup (T1 vs T3, chosen before
+simulating by the closest-expected-totals rule) and for all 15 pairs. Scoring is the
+placeholder points formula (the user's real league is 9-cat; documented as an assumption).
+15 tests pass.
 
 Next, in order:
-1. Run `download_data.py` locally; check column names against `config.SCORING`.
-2. Fill `data/rosters.csv` (Team X/Y, Player) with real rosters; pick a real past week; run Exp 1 for real.
-3. Replace the placeholder scoring formula with the league's real one.
-4. Experiment 2 (waiver add), Experiment 3 (sensitivity to availability and variance), convergence plots on real data.
-5. Backtest on weeks not used for estimation; write limitations; draft report by Nov 30.
+1. Experiment 2 (waiver add), Experiment 3 (sensitivity to availability and variance), convergence plots on real data.
+2. Backtest on weeks not used for estimation; write limitations; draft report by Nov 30.
 
 ## Known limitations to document
 
