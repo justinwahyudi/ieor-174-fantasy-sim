@@ -7,9 +7,9 @@ Real week (after download_data and draft):
     python -m fantasy_experiment.run_exp1 --week-start 2026-01-12 --week-end 2026-01-18
 
 Matchup: --team-x/--team-y, or by default the two teams whose EXPECTED weekly
-totals (best 5 by expected points, from the formula, no simulation) are
+totals (best k by expected points, from the formula, no simulation) are
 closest; Team X is the one earlier in name order. Team X chooses its lineup;
-Team Y's lineup is fixed (Starter=1 in rosters.csv, else its top 5 by expected points).
+Team Y's lineup is fixed (Starter=1 in rosters.csv, else its top k by expected points).
 
 Two independent runs of every drafted player are drawn from one rng: the
 SELECTION run ranks lineups and picks the best by win probability; the
@@ -72,7 +72,7 @@ def run(args):
     out = config.OUTPUT_DIR / "exp1_lineups.csv"
     table.to_csv(out, index=False)
 
-    print("Expected weekly totals (best 5 by expected points): "
+    print(f"Expected weekly totals (best {k} by expected points): "
           + ", ".join(f"{t} {v:.1f}" for t, v in team_totals.items()))
     print(f"Matchup: {tx} (chooses) vs {ty} (fixed)   [{rule}]")
     print(f"Opponent lineup: {s['Opp_Lineup']}")

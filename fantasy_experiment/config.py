@@ -9,7 +9,10 @@ SEED = 42
 N_SIM = 200_000         # replications per run (about +/-0.22 pts of win prob at p=0.5)
 ROBUSTNESS_SEEDS = (42, 1, 2, 3)        # seeds for the Experiment 1 robustness check
 ROBUSTNESS_NS = (20_000, 200_000)       # replication counts for the robustness check
-N_STARTERS = 5          # DECISION: players in a lineup (positions are ignored for now)
+N_STARTERS = 10         # DECISION: starters per team; 13-man roster, 3 on the bench.
+                        # Positions and daily lineup changes are ignored (limitation).
+STARTERS_COMPARE = (10, 5)              # lineup sizes compared in the multi-league run
+N_LEAGUES = 50          # DECISION: independently drafted leagues in the multi-league run
 
 SEASON = "2025-26"
 RAW_GAMELOG = Path("data/raw") / f"gamelog_{SEASON}.csv"

@@ -3,7 +3,7 @@
 Run:  python -m fantasy_experiment.run_exp1_pairs --week-start 2026-01-12 --week-end 2026-01-18
 
 For each of the 6 x 5 = 30 ordered pairs, Team X chooses its lineup and Team
-Y's lineup is fixed (top 5 by expected points). Each unordered pair is run in
+Y's lineup is fixed (top k by expected points; k = --starters). Each unordered pair is run in
 both directions, since the favourite and the underdog face different
 decisions. All pairs use ONE simulation of every drafted player (common random numbers), so
 the main matchup's numbers here equal run_exp1's.

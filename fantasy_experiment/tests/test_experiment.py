@@ -239,3 +239,35 @@ class TestZeroMinutes(unittest.TestCase):
         kept = player_estimates(gl, "2026-02-01", exclude_zero_min=False).set_index("Player")
         self.assertEqual(kept.loc["B", "GP"], 10)
         self.assertAlmostEqual(kept.loc["B", "Mean_PPG"], 24.0)
+
+
+class TestMultiLeague(unittest.TestCase):
+    @staticmethod
+    def fake_est(n=100):
+        rng = np.random.default_rng(5)
+        return pd.DataFrame({"Player": [f"P{i:03d}" for i in range(n)],
+                             "Mean_PPG": np.linspace(55, 20, n), "Std_PPG": 10.0,
+                             "GP": 30, "Avail": rng.uniform(0.7, 1.0, n),
+                             "Games": rng.integers(2, 5, n)})
+
+    def test_leagues_differ_and_are_reproducible(self):
+        from fantasy_experiment.multileague import run_leagues
+        est = self.fake_est()
+        a = run_leagues(est, np.random.default_rng(1), 2, (10, 5), 500)
+        b = run_leagues(est, np.random.default_rng(1), 2, (10, 5), 500)
+        pd.testing.assert_frame_equal(a, b)
+        self.assertEqual(len(a), 2 * 2 * 30)                      # leagues x k x ordered pairs
+        l1 = a[(a.League == 1) & (a.Starters == 5)].Best_Pts.tolist()
+        l2 = a[(a.League == 2) & (a.Starters == 5)].Best_Pts.tolist()
+        self.assertNotEqual(l1, l2)                               # different drafts
+
+    def test_bootstrap_summary_consistent(self):
+        from fantasy_experiment.multileague import bootstrap_summary, run_leagues
+        detail = run_leagues(self.fake_est(), np.random.default_rng(2), 3, (10, 5), 500)
+        summ, lt = bootstrap_summary(detail, np.random.default_rng(0), n_boot=500)
+        for r in summ.itertuples():
+            sub = detail[detail.Starters == r.Starters]
+            self.assertAlmostEqual(r.Share_Differ, sub.Differ.mean())
+            self.assertAlmostEqual(r.Gain_All, sub.Holdout_Gain.mean())
+            self.assertLessEqual(r.Share_Differ_CI_low, r.Share_Differ)
+            self.assertGreaterEqual(r.Share_Differ_CI_high, r.Share_Differ)

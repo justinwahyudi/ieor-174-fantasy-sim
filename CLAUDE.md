@@ -44,7 +44,7 @@ optimization, correlated teammates, 9-category scoring.
   - `lineups.py` enumerate lineups, win probability, paired difference CIs
   - `draft.py` seeded 6-team snake draft -> `data/rosters.csv`, `outputs/draft_order.csv`
   - `run_exp1.py` Experiment 1 (main matchup = closest expected totals); `run_exp1_pairs.py` all 30 ordered pairs;
-    `run_exp1_robustness.py` seeds x n. Picks are made on a selection run and the gain is measured on an independent evaluation run (`Holdout_Gain`)
+    `run_exp1_robustness.py` seeds x n; `run_exp1_leagues.py` + `multileague.py` 50 drafted leagues x k (headline). Picks are made on a selection run and the gain is measured on an independent evaluation run (`Holdout_Gain`)
   - `demo.py` toy rosters (`--toy`)
   - `tests/` run: `python -m unittest discover -s fantasy_experiment/tests -t .`
 - `data/` (raw data git-ignored), `outputs/` (figures and tables for the report), `notebooks/` (exploration only).
@@ -67,7 +67,10 @@ with retry). Rosters come from a 6-team seeded snake draft (`draft.py`, noise SD
 Experiment 1 was run on Jan 12-18, 2026 for the main matchup (T1 vs T2, chosen before
 simulating by the closest-expected-totals rule) and for all 30 ordered pairs (both directions). Scoring is the
 placeholder points formula (the user's real league is 9-cat; documented as an assumption).
-N_SIM = 200,000 per run. Zero-minute rows are excluded from games played and availability. 19 tests pass.
+N_SIM = 200,000 per run. Zero-minute rows are excluded from games played and availability.
+Default 10 starters (of 13). Headline: 50 drafted leagues x 30 ordered pairs. The picks differ in
+9.5% of decisions at k=10 and 9.0% at k=5. The held-out gain when they differ is +0.18 pts at k=10
+and +0.34 pts at k=5 of win probability (CIs in README). 21 tests pass.
 
 Next, in order:
 1. Experiment 2 (waiver add), Experiment 3 (sensitivity to availability and variance), convergence plots on real data.
@@ -75,4 +78,4 @@ Next, in order:
 
 ## Known limitations to document
 
-Availability = games played / team games (a proxy, biased for traded players, not an injury forecast). Normal scores ignore skew and correlation between teammates. Positions and daily lineup slots are ignored. Lineups are fixed for the week. Opponent lineup is fixed. Results come from ONE drafted league: how often the two picks differ depends strongly on the rosters (old draft: 7 of 30 differ, T5 underdog gains about 0.3-0.5 pts; current draft: 1 of 30, gain about 0.05 pts). The draft noise is a 6 x pool-size array, so any change to the pool size reshuffles every team's board (see draft.py).
+Availability = games played / team games (a proxy, biased for traded players, not an injury forecast). Normal scores ignore skew and correlation between teammates. Positions and daily lineup slots are ignored: any 10 of 13 can start (default k = 10), and lineups are fixed for the week. Opponent lineup is fixed. Results come from ONE drafted league: how often the two picks differ depends strongly on the rosters (old draft: 7 of 30 differ, T5 underdog gains about 0.3-0.5 pts; current draft: 1 of 30, gain about 0.05 pts). The draft noise is a 6 x pool-size array, so any change to the pool size reshuffles every team's board (see draft.py).
