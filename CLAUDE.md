@@ -43,7 +43,8 @@ optimization, correlated teammates, 9-category scoring.
   - `model.py` weekly simulation with availability (Bernoulli games, normal scores)
   - `lineups.py` enumerate lineups, win probability, paired difference CIs
   - `draft.py` seeded 6-team snake draft -> `data/rosters.csv`, `outputs/draft_order.csv`
-  - `run_exp1.py` Experiment 1 (main matchup = closest expected totals); `run_exp1_pairs.py` all 30 ordered pairs
+  - `run_exp1.py` Experiment 1 (main matchup = closest expected totals); `run_exp1_pairs.py` all 30 ordered pairs;
+    `run_exp1_robustness.py` seeds x n. Picks are made on a selection run and the gain is measured on an independent evaluation run (`Holdout_Gain`)
   - `demo.py` toy rosters (`--toy`)
   - `tests/` run: `python -m unittest discover -s fantasy_experiment/tests -t .`
 - `data/` (raw data git-ignored), `outputs/` (figures and tables for the report), `notebooks/` (exploration only).
@@ -66,7 +67,7 @@ with retry). Rosters come from a 6-team seeded snake draft (`draft.py`, noise SD
 Experiment 1 was run on Jan 12-18, 2026 for the main matchup (T1 vs T3, chosen before
 simulating by the closest-expected-totals rule) and for all 30 ordered pairs (both directions). Scoring is the
 placeholder points formula (the user's real league is 9-cat; documented as an assumption).
-15 tests pass.
+N_SIM = 200,000 per run. 18 tests pass.
 
 Next, in order:
 1. Experiment 2 (waiver add), Experiment 3 (sensitivity to availability and variance), convergence plots on real data.

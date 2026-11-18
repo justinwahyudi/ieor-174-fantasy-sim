@@ -6,7 +6,9 @@ here and the rest of the code follows. Document the final choice in the report.
 from pathlib import Path
 
 SEED = 42
-N_SIM = 20_000          # replications per experiment (about +/-0.7 pts of win prob)
+N_SIM = 200_000         # replications per run (about +/-0.22 pts of win prob at p=0.5)
+ROBUSTNESS_SEEDS = (42, 1, 2, 3)        # seeds for the Experiment 1 robustness check
+ROBUSTNESS_NS = (20_000, 200_000)       # replication counts for the robustness check
 N_STARTERS = 5          # DECISION: players in a lineup (positions are ignored for now)
 
 SEASON = "2025-26"

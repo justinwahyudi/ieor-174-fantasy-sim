@@ -87,14 +87,20 @@ def opponent_lineup(players, rosters, team, k):
     return top_k_by_expected(players[players["Player"].isin(ros["Player"])], k)
 
 
-def evaluate_matchup(totals, players, x_roster, y_lineup, k):
+def evaluate_matchup(totals, players, x_roster, y_lineup, k, totals_eval=None):
     """Experiment 1 for one matchup: every Team X lineup against Team Y's fixed lineup.
 
     Returns (table, summary). The points pick is the lineup with the highest
     THEORETICAL expected points (what a points maximizer would choose, with no
     Monte Carlo noise). If the win-probability pick differs, the summary holds
     the paired gain over the points pick; if not, the paired margin over the
-    runner-up by win probability.
+    runner-up by win probability. These in-sample numbers use the same run that
+    chose the pick, so they are biased upward (winner's curse).
+
+    totals_eval: an INDEPENDENT simulation run of the same players. If given,
+    the picks made on `totals` are re-scored on it: Holdout_* columns hold the
+    unbiased P(win) of both picks and the paired gain of the win-probability
+    pick over the points pick (exactly 0 when the picks agree).
     """
     opp = lineup_total(totals, y_lineup)
     exp = expected_week_pts(players)
@@ -117,4 +123,20 @@ def evaluate_matchup(totals, players, x_roster, y_lineup, k):
         "Compared_To": "points pick" if differ else "runner-up",
         "Diff": diff, "Diff_CI_low": lo, "Diff_CI_high": hi,
     }
+    if totals_eval is not None:
+        summary.update(holdout_gain(totals_eval, best_pwin["Lineup"].split(", "),
+                                    best_pts["Lineup"].split(", "), y_lineup))
     return table, summary
+
+
+def holdout_gain(totals_eval, pwin_pick, pts_pick, y_lineup):
+    """Score two already-chosen lineups on an independent run (no selection bias)."""
+    opp = lineup_total(totals_eval, y_lineup)
+    p_best, _ = estimate_win_prob(lineup_total(totals_eval, pwin_pick), opp)
+    p_pts, _ = estimate_win_prob(lineup_total(totals_eval, pts_pick), opp)
+    if list(pwin_pick) == list(pts_pick):
+        gain, lo, hi = 0.0, 0.0, 0.0
+    else:
+        gain, (lo, hi) = paired_win_diff(totals_eval, pwin_pick, pts_pick, opp)
+    return {"Holdout_P_win_best": p_best, "Holdout_P_win_pts_pick": p_pts,
+            "Holdout_Gain": gain, "Holdout_CI_low": lo, "Holdout_CI_high": hi}

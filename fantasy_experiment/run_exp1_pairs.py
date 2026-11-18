@@ -8,33 +8,51 @@ both directions, since the favourite and the underdog face different
 decisions. All pairs use ONE simulation of every drafted player (common random numbers), so
 the main matchup's numbers here equal run_exp1's.
 
+Picks are made on a selection run and re-scored on an independent evaluation
+run (see run_exp1), so Holdout_Gain is an unbiased estimate of the gain.
+
 Saves outputs/exp1_pairs.csv and prints how often the win-probability pick
-differs from the expected-points pick, and the paired gain when it does.
+differs from the expected-points pick, and the held-out gain when it does.
 """
 import argparse
 from itertools import permutations
 
-import numpy as np
 import pandas as pd
 
 from . import config
 from .lineups import closest_pair, evaluate_matchup, opponent_lineup, team_expected_total
-from .model import simulate_weekly_totals
-from .run_exp1 import add_common_args, build_inputs, check_args, roster_of
+from .run_exp1 import add_common_args, build_inputs, check_args, roster_of, simulate_two_runs
 
 
-def run_all_pairs(players, rosters, totals, k):
+def run_all_pairs(players, rosters, totals, k, totals_eval=None):
     rows = []
     for tx, ty in permutations(sorted(rosters["Team"].unique()), 2):
         y_lineup = opponent_lineup(players, rosters, ty, k)
-        _, s = evaluate_matchup(totals, players, roster_of(rosters, tx), y_lineup, k)
+        _, s = evaluate_matchup(totals, players, roster_of(rosters, tx), y_lineup, k, totals_eval)
         rows.append({"Team_X": tx, "Team_Y": ty,
                      "Pair": "-".join(sorted((tx, ty))),
                      "Exp_X": team_expected_total(players, roster_of(rosters, tx), k),
                      "Exp_Y": team_expected_total(players, roster_of(rosters, ty), k), **s})
     df = pd.DataFrame(rows)
     df["Gain_Significant"] = df["Differ"] & (df["Diff_CI_low"] > 0)
+    if totals_eval is not None:
+        df["Holdout_Significant"] = df["Differ"] & (df["Holdout_CI_low"] > 0)
     return df
+
+
+def summarize(df):
+    """One-row summary of a run_all_pairs table."""
+    d = df[df["Differ"]]
+    out = {"Decisions": len(df), "Differ": len(d),
+           "InSample_Gain_Mean": d["Diff"].mean() if len(d) else 0.0,
+           "InSample_Significant": int(d["Gain_Significant"].sum())}
+    if "Holdout_Gain" in df:
+        out.update({"Holdout_Gain_Mean": d["Holdout_Gain"].mean() if len(d) else 0.0,
+                    "Holdout_Gain_Min": d["Holdout_Gain"].min() if len(d) else 0.0,
+                    "Holdout_Gain_Max": d["Holdout_Gain"].max() if len(d) else 0.0,
+                    "Holdout_Significant": int(d["Holdout_Significant"].sum()),
+                    "Holdout_Negative": int((d["Holdout_Gain"] < 0).sum())})
+    return out
 
 
 def main(argv=None):
@@ -44,9 +62,8 @@ def main(argv=None):
 
     players, rosters = build_inputs(args)
     k = args.starters
-    rng = np.random.default_rng(args.seed)
-    totals = simulate_weekly_totals(players, args.n, rng)
-    df = run_all_pairs(players, rosters, totals, k)
+    totals, totals_eval = simulate_two_runs(players, args.n, args.seed)
+    df = run_all_pairs(players, rosters, totals, k, totals_eval)
     (mx, my), _ = closest_pair(players, rosters, k)
     df["Main"] = (df["Team_X"] == mx) & (df["Team_Y"] == my)
 
@@ -54,16 +71,18 @@ def main(argv=None):
     out = config.OUTPUT_DIR / "exp1_pairs.csv"
     df.to_csv(out, index=False)
 
-    show = df[["Team_X", "Team_Y", "Exp_X", "Exp_Y", "P_win_pts_pick", "P_win_best",
-               "Differ", "Diff", "Diff_CI_low", "Diff_CI_high", "Main"]]
+    show = df[["Team_X", "Team_Y", "Exp_X", "Exp_Y", "Holdout_P_win_pts_pick", "Differ",
+               "Diff", "Holdout_Gain", "Holdout_CI_low", "Holdout_CI_high", "Main"]]
     print(show.round(4).to_string(index=False))
-    d = df[df["Differ"]]
-    print(f"\nOrdered pairs (decisions): {len(df)}   (n={args.n}, seed={args.seed})")
-    print(f"Win-probability pick differs from points pick: {len(d)} of {len(df)}")
-    if len(d):
-        print(f"  Gain when they differ: mean {d['Diff'].mean():+.4f}, "
-              f"min {d['Diff'].min():+.4f}, max {d['Diff'].max():+.4f}")
-        print(f"  Gain with 95% CI above 0: {int(d['Gain_Significant'].sum())} of {len(d)}")
+    sm = summarize(df)
+    print(f"\nOrdered pairs (decisions): {sm['Decisions']}   (n={args.n} per run, seed={args.seed})")
+    print(f"Win-probability pick differs from points pick: {sm['Differ']} of {sm['Decisions']}")
+    if sm["Differ"]:
+        print(f"  In-sample gain (selection run, biased up): mean {sm['InSample_Gain_Mean']:+.4f}; "
+              f"CI above 0 in {sm['InSample_Significant']}")
+        print(f"  Held-out gain (independent run): mean {sm['Holdout_Gain_Mean']:+.4f}, "
+              f"min {sm['Holdout_Gain_Min']:+.4f}, max {sm['Holdout_Gain_Max']:+.4f}; "
+              f"CI above 0 in {sm['Holdout_Significant']}, negative in {sm['Holdout_Negative']}")
     print(f"\nSaved {out}")
     return df
 

@@ -11,8 +11,11 @@ totals (best 5 by expected points, from the formula, no simulation) are
 closest; Team X is the one earlier in name order. Team X chooses its lineup;
 Team Y's lineup is fixed (Starter=1 in rosters.csv, else its top 5 by expected points).
 
-Every drafted player is simulated once from one rng, so all matchups (here and
-in run_exp1_pairs) share the same simulated weeks.
+Two independent runs of every drafted player are drawn from one rng: the
+SELECTION run ranks lineups and picks the best by win probability; the
+EVALUATION run re-scores the two picks, giving an unbiased gain estimate
+(choosing the max of many noisy estimates and reporting that same estimate is
+biased upward). All matchups here and in run_exp1_pairs share both runs.
 
 Saves outputs/exp1_lineups.csv (all Team X lineups ranked by win probability).
 """
@@ -43,6 +46,12 @@ def build_inputs(args):
     return players, rosters[rosters["Player"].isin(players["Player"])]
 
 
+def simulate_two_runs(players, n, seed):
+    """Selection run and an independent evaluation run, both from one rng(seed)."""
+    rng = np.random.default_rng(seed)
+    return simulate_weekly_totals(players, n, rng), simulate_weekly_totals(players, n, rng)
+
+
 def roster_of(rosters, team):
     return list(rosters.loc[rosters["Team"] == team, "Player"])
 
@@ -54,11 +63,10 @@ def run(args):
     tx, ty = args.team_x or auto_x, args.team_y or auto_y
     rule = "given on command line" if args.team_x else "closest expected weekly totals"
 
-    rng = np.random.default_rng(args.seed)
-    totals = simulate_weekly_totals(players, args.n, rng)   # one shared scenario table
+    totals, totals_eval = simulate_two_runs(players, args.n, args.seed)
 
     y_lineup = opponent_lineup(players, rosters, ty, k)
-    table, s = evaluate_matchup(totals, players, roster_of(rosters, tx), y_lineup, k)
+    table, s = evaluate_matchup(totals, players, roster_of(rosters, tx), y_lineup, k, totals_eval)
 
     config.OUTPUT_DIR.mkdir(exist_ok=True)
     out = config.OUTPUT_DIR / "exp1_lineups.csv"
@@ -78,8 +86,13 @@ def run(args):
     print(f"Best by win probability: {s['Best_Pwin']}  (P_win {s['P_win_best']:.3f})")
     if not s["Differ"]:
         print("Same lineup: simulation did not change the decision here.")
-    print(f"Paired P_win difference, best minus {s['Compared_To']}: {s['Diff']:+.4f}  "
-          f"95% CI ({s['Diff_CI_low']:+.4f}, {s['Diff_CI_high']:+.4f})  (same simulated weeks)")
+    print(f"In-sample paired P_win difference, best minus {s['Compared_To']}: {s['Diff']:+.4f}  "
+          f"95% CI ({s['Diff_CI_low']:+.4f}, {s['Diff_CI_high']:+.4f})  (selection run; biased up)")
+    print(f"Held-out (independent run, n={args.n}): P_win of win-prob pick {s['Holdout_P_win_best']:.4f}, "
+          f"of points pick {s['Holdout_P_win_pts_pick']:.4f}")
+    print(f"Held-out gain of win-prob pick over points pick: {s['Holdout_Gain']:+.4f}  "
+          f"95% CI ({s['Holdout_CI_low']:+.4f}, {s['Holdout_CI_high']:+.4f})"
+          + ("  (picks agree: gain is 0 by definition)" if not s["Differ"] else ""))
     print(f"\nSaved {out}")
     return table
 

@@ -30,6 +30,7 @@ python -m fantasy_experiment.download_data       # saves data/raw/gamelog_2025-2
 python -m fantasy_experiment.draft --cutoff 2026-01-12     # data/rosters.csv, outputs/draft_order.csv
 python -m fantasy_experiment.run_exp1 --week-start 2026-01-12 --week-end 2026-01-18        # main matchup
 python -m fantasy_experiment.run_exp1_pairs --week-start 2026-01-12 --week-end 2026-01-18  # all 30 ordered pairs
+python -m fantasy_experiment.run_exp1_robustness --week-start 2026-01-12 --week-end 2026-01-18  # seeds x n (about 2 min)
 
 # tests
 python -m unittest discover -s fantasy_experiment/tests -t .
@@ -82,6 +83,18 @@ simulated estimate inside its 95% CI of that value.
   Monte Carlo noise). **Win-probability pick** = the lineup with the highest
   simulated P(win). If the two match, the reported paired CI compares the pick
   with the runner-up.
+- **Selection run vs evaluation run.** Each experiment draws two independent
+  runs of n = 200,000 simulated weeks from one `default_rng(seed)`. The
+  selection run ranks all lineups and picks the one with the highest P(win).
+  The evaluation run re-scores the two picks; its paired difference
+  (`Holdout_Gain`) is the reported gain. Taking the maximum of 1,287 noisy
+  estimates and reporting that same estimate is biased upward (winner's curse);
+  re-scoring on independent data removes the bias. The in-sample difference is
+  kept in the output only to show the bias.
+- **Robustness:** the 30-pair analysis is repeated for seeds 42, 1, 2, 3 at
+  n = 20,000 and n = 200,000 (`outputs/exp1_robustness*.csv`). A
+  disagreement is treated as real if it appears for most seeds at n = 200,000
+  with a held-out CI above 0.
 - **Experiment 1 week:** Mon Jan 12 to Sun Jan 18, 2026 (2025-26 season).
   Estimates use only games before Jan 12. Games in the week = games the
   player's team actually played that week (from the log).

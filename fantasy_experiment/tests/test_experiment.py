@@ -189,3 +189,36 @@ class TestAllPairs(unittest.TestCase):
         totals = simulate_weekly_totals(players, 2000, np.random.default_rng(0))
         df = run_all_pairs(players, rosters, totals, 3)
         self.assertEqual(sorted(zip(df["Team_X"], df["Team_Y"])), [("X", "Y"), ("Y", "X")])
+
+
+class TestHoldout(unittest.TestCase):
+    def test_winners_curse_removed_by_holdout(self):
+        """Identical players: every lineup is truly equal, so the true gain is 0.
+        The in-sample gain of the best-looking lineup is positive by construction;
+        the held-out gain should not be."""
+        from fantasy_experiment.lineups import evaluate_matchup
+        names = [f"P{i}" for i in range(10)]
+        players = pd.DataFrame({"Player": names, "Mean_PPG": 40.0, "Std_PPG": 12.0,
+                                "Avail": 0.9, "Games": 3})
+        players.loc[:2, "Mean_PPG"] = 40.001   # points pick = P0, P1, P2 (true gain ~ 0)
+        rng = np.random.default_rng(7)
+        sel = simulate_weekly_totals(players, 20000, rng)
+        ev = simulate_weekly_totals(players, 20000, rng)
+        _, s = evaluate_matchup(sel, players, names[:8], names[8:], 3, ev)
+        self.assertTrue(s["Differ"])
+        self.assertGreater(s["Diff"], 0)
+        self.assertLessEqual(s["Holdout_CI_low"], 0.0)
+        self.assertGreaterEqual(s["Holdout_CI_high"], 0.0)
+
+    def test_holdout_zero_when_picks_agree_and_matches_in_sample_on_same_run(self):
+        from fantasy_experiment.lineups import evaluate_matchup
+        players, rosters = toy_players()
+        x = list(rosters.loc[rosters.Team == "X", "Player"])
+        y = list(rosters.loc[rosters.Team == "Y", "Player"])[:3]
+        totals = simulate_weekly_totals(players, 5000, np.random.default_rng(3))
+        _, s = evaluate_matchup(totals, players, x, y, 3, totals_eval=totals)
+        if s["Differ"]:
+            self.assertAlmostEqual(s["Holdout_Gain"], s["Diff"])
+        else:
+            self.assertEqual(s["Holdout_Gain"], 0.0)
+        self.assertAlmostEqual(s["Holdout_P_win_best"], s["P_win_best"])
