@@ -64,10 +64,10 @@ Done: toy Stages 1-4 validated; convergence plot; `fantasy_experiment` scaffold 
 availability model, lineup enumeration, paired CIs, Experiment 1 script, tests (8 pass),
 verified on demo data and a synthetic game log. 2025-26 game log downloaded (nba_api,
 with retry). Rosters come from a 6-team seeded snake draft (`draft.py`, noise SD 2.0, seed 42).
-Experiment 1 was run on Jan 12-18, 2026 for the main matchup (T1 vs T3, chosen before
+Experiment 1 was run on Jan 12-18, 2026 for the main matchup (T1 vs T2, chosen before
 simulating by the closest-expected-totals rule) and for all 30 ordered pairs (both directions). Scoring is the
 placeholder points formula (the user's real league is 9-cat; documented as an assumption).
-N_SIM = 200,000 per run. 18 tests pass.
+N_SIM = 200,000 per run. Zero-minute rows are excluded from games played and availability. 19 tests pass.
 
 Next, in order:
 1. Experiment 2 (waiver add), Experiment 3 (sensitivity to availability and variance), convergence plots on real data.
@@ -75,4 +75,4 @@ Next, in order:
 
 ## Known limitations to document
 
-Availability = games played / team games (a proxy, biased for traded players, not an injury forecast). Normal scores ignore skew and correlation between teammates. Positions and daily lineup slots are ignored. Lineups are fixed for the week. Opponent lineup is fixed.
+Availability = games played / team games (a proxy, biased for traded players, not an injury forecast). Normal scores ignore skew and correlation between teammates. Positions and daily lineup slots are ignored. Lineups are fixed for the week. Opponent lineup is fixed. Results come from ONE drafted league: how often the two picks differ depends strongly on the rosters (old draft: 7 of 30 differ, T5 underdog gains about 0.3-0.5 pts; current draft: 1 of 30, gain about 0.05 pts). The draft noise is a 6 x pool-size array, so any change to the pool size reshuffles every team's board (see draft.py).

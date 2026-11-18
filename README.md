@@ -61,7 +61,7 @@ simulated estimate inside its 95% CI of that value.
   `FANTASY_PTS` column from nba_api is ignored (kept as `NBA_FANTASY_PTS`).
 - **Rosters come from a simulated 6-team league draft** (`fantasy_experiment/draft.py`).
   The pool is every player with at least 25 games before the cutoff (Jan 12, 2026):
-  302 players. A player's value is his average fantasy points per game played
+  298 players. A player's value is his average fantasy points per game played
   before the cutoff. Each team gets its own draft board, equal to value plus
   Normal(0, 2.0) noise, drawn once per (team, player) from `default_rng(42)`.
   The draft is a snake (T1..T6, T6..T1, ...) for 13 rounds: 78 players, 13 per
@@ -73,8 +73,8 @@ simulated estimate inside its 95% CI of that value.
   expected weekly totals for Jan 12-18 are closest. A team's expected total is the
   sum of Mean x Avail x Games over its best 5 by that same quantity, computed from
   the formula, not from simulation. The team earlier in name order chooses its
-  lineup; the other team's lineup is fixed. The rule picked T1 vs T3 (761.0 vs
-  761.3; the next closest pair differs by 19.7).
+  lineup; the other team's lineup is fixed. The rule picked T1 vs T2 (825.3 vs
+  826.2; the next closest pair differs by 18.3).
 - **All-pairs check:** Experiment 1 is also run for all 30 ordered pairs. Each of
   the 15 pairs is run in both directions (each team takes a turn choosing its lineup
   against the other's fixed lineup). All 78 players are simulated once, so every pair uses the same
@@ -95,6 +95,10 @@ simulated estimate inside its 95% CI of that value.
   n = 20,000 and n = 200,000 (`outputs/exp1_robustness*.csv`). A
   disagreement is treated as real if it appears for most seeds at n = 200,000
   with a held-out CI above 0.
+- **Zero-minute rows are not games played.** The game log has 83 rows with
+  0 minutes (48 before the cutoff). They are dropped from games played,
+  availability, and the mean/SD of fantasy points (`config.EXCLUDE_ZERO_MIN`),
+  but still count toward the team's schedule.
 - **Experiment 1 week:** Mon Jan 12 to Sun Jan 18, 2026 (2025-26 season).
   Estimates use only games before Jan 12. Games in the week = games the
   player's team actually played that week (from the log).

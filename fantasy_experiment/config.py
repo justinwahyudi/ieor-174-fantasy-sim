@@ -28,5 +28,9 @@ SCORING = {
     "FG3M": 0.5,
 }
 
+# DECISION: drop game-log rows with 0 minutes (logged but did not really play)
+# from games played, availability, and the mean/SD of fantasy points.
+EXCLUDE_ZERO_MIN = True
+
 # DECISION: clip simulated single-game scores at 0 (normal scores can go negative).
 CLIP_AT_ZERO = True

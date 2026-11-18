@@ -222,3 +222,20 @@ class TestHoldout(unittest.TestCase):
         else:
             self.assertEqual(s["Holdout_Gain"], 0.0)
         self.assertAlmostEqual(s["Holdout_P_win_best"], s["P_win_best"])
+
+
+class TestZeroMinutes(unittest.TestCase):
+    def test_zero_minute_rows_not_games_played(self):
+        from fantasy_experiment.data_prep import player_estimates
+        dates = pd.date_range("2026-01-01", periods=10)
+        gl = pd.DataFrame({"PLAYER_NAME": ["A"] * 10 + ["B"] * 10, "TEAM_ID": 1,
+                           "GAME_ID": list(range(10)) * 2, "GAME_DATE": list(dates) * 2,
+                           "MIN": [30] * 10 + [30] * 6 + [0] * 4,
+                           "FANTASY_PTS": [40.0] * 10 + [40.0] * 6 + [0.0] * 4})
+        est = player_estimates(gl, "2026-02-01").set_index("Player")
+        self.assertEqual(est.loc["B", "GP"], 6)
+        self.assertAlmostEqual(est.loc["B", "Avail"], 0.6)       # team still played 10
+        self.assertAlmostEqual(est.loc["B", "Mean_PPG"], 40.0)
+        kept = player_estimates(gl, "2026-02-01", exclude_zero_min=False).set_index("Player")
+        self.assertEqual(kept.loc["B", "GP"], 10)
+        self.assertAlmostEqual(kept.loc["B", "Mean_PPG"], 24.0)
