@@ -32,6 +32,7 @@ python -m fantasy_experiment.run_exp1 --week-start 2026-01-12 --week-end 2026-01
 python -m fantasy_experiment.run_exp1_pairs --week-start 2026-01-12 --week-end 2026-01-18  # all 30 ordered pairs
 python -m fantasy_experiment.run_exp1_robustness --week-start 2026-01-12 --week-end 2026-01-18  # seeds x n (about 2 min)
 python -m fantasy_experiment.run_exp1_leagues --week-start 2026-01-12 --week-end 2026-01-18    # 50 leagues, k=10 and 5 (35-75 min, depends on machine load)
+python -m fantasy_experiment.exp1_balance       # breakdown by matchup balance: outputs/exp1_balance.{csv,png} (seconds; reads the 50-league output)
 # any script takes --starters K (default 10); run_exp1_leagues takes several, e.g. --starters 10 5
 
 # tests
@@ -154,7 +155,10 @@ win probability rises by a fraction of a percentage point (largest single gain:
 0.9 pts at k = 10, 2.1 pts at k = 5). Disagreements are rarest in even
 matchups (2-3% of decisions when the points pick's P(win) is 0.4-0.6) and
 most common in lopsided ones (10-19% below 0.2 or above 0.8), as expected:
-variance matters most to clear underdogs and clear favourites.
+variance matters most to clear underdogs and clear favourites. Breakdown and
+chart: `outputs/exp1_balance.csv`, `outputs/exp1_balance.png`
+(`exp1_balance.py`; bins of width 0.2 on the held-out P(win) of the points
+pick, league-bootstrap CIs).
 
 ### Limitations
 

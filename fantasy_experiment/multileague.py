@@ -88,3 +88,47 @@ def bootstrap_summary(detail, rng, n_boot=10_000):
             row[key + "_CI_low"], row[key + "_CI_high"] = np.percentile(b, [2.5, 97.5])
         rows.append(row)
     return pd.DataFrame(rows), lt
+
+
+BALANCE_EDGES = (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)   # DECISION: bins of matchup balance
+
+
+def balance_breakdown(detail, rng, edges=BALANCE_EDGES, n_boot=10_000):
+    """Disagreement and gain by matchup balance, with league-bootstrap 95% CIs.
+
+    Balance = held-out P(win) of the points pick (Holdout_P_win_pts_pick), i.e.
+    how likely Team X is to win if it simply starts its expected-points lineup.
+    Returns one row per (Starters, bin): Decisions, Differ, Share_Differ,
+    Gain_All (mean held-out gain per decision, 0 when picks agree) and
+    Gain_When_Differ, each with a CI from resampling whole leagues. The same
+    resampled leagues are used for every k and bin.
+    """
+    d = detail.copy()
+    labels = [f"{a:.1f}-{b:.1f}" for a, b in zip(edges[:-1], edges[1:])]
+    d["Bin"] = pd.cut(d["Holdout_P_win_pts_pick"], list(edges), labels=labels,
+                      include_lowest=True)
+    leagues = np.sort(d["League"].unique())
+    idx = rng.integers(0, len(leagues), size=(n_boot, len(leagues)))
+
+    rows = []
+    for k in sorted(d["Starters"].unique()):
+        g = (d[d["Starters"] == k]
+             .groupby(["League", "Bin"], observed=False)
+             .agg(N=("Differ", "size"), D=("Differ", "sum"), G=("Holdout_Gain", "sum")))
+        for b in labels:
+            t = g.xs(b, level="Bin").reindex(leagues, fill_value=0)
+            N, D, G = (t[c].to_numpy(dtype=float) for c in ("N", "D", "G"))
+            bn, bd, bg = N[idx].sum(1), D[idx].sum(1), G[idx].sum(1)
+            with np.errstate(invalid="ignore", divide="ignore"):
+                boots = {"Share_Differ": bd / bn, "Gain_All": bg / bn, "Gain_When_Differ": bg / bd}
+            point = {"Share_Differ": D.sum() / N.sum() if N.sum() else np.nan,
+                     "Gain_All": G.sum() / N.sum() if N.sum() else np.nan,
+                     "Gain_When_Differ": G.sum() / D.sum() if D.sum() else np.nan}
+            row = {"Starters": k, "Bin": b, "Decisions": int(N.sum()), "Differ": int(D.sum())}
+            for key, val in point.items():
+                bb = boots[key][np.isfinite(boots[key])]
+                row[key] = val
+                row[key + "_CI_low"], row[key + "_CI_high"] = (
+                    np.percentile(bb, [2.5, 97.5]) if len(bb) else (np.nan, np.nan))
+            rows.append(row)
+    return pd.DataFrame(rows)

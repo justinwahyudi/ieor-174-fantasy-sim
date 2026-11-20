@@ -44,7 +44,8 @@ optimization, correlated teammates, 9-category scoring.
   - `lineups.py` enumerate lineups, win probability, paired difference CIs
   - `draft.py` seeded 6-team snake draft -> `data/rosters.csv`, `outputs/draft_order.csv`
   - `run_exp1.py` Experiment 1 (main matchup = closest expected totals); `run_exp1_pairs.py` all 30 ordered pairs;
-    `run_exp1_robustness.py` seeds x n; `run_exp1_leagues.py` + `multileague.py` 50 drafted leagues x k (headline). Picks are made on a selection run and the gain is measured on an independent evaluation run (`Holdout_Gain`)
+    `run_exp1_robustness.py` seeds x n; `run_exp1_leagues.py` + `multileague.py` 50 drafted leagues x k (headline);
+    `exp1_balance.py` breakdown by matchup balance -> `outputs/exp1_balance.{csv,png}`. Picks are made on a selection run and the gain is measured on an independent evaluation run (`Holdout_Gain`)
   - `demo.py` toy rosters (`--toy`)
   - `tests/` run: `python -m unittest discover -s fantasy_experiment/tests -t .`
 - `data/` (raw data git-ignored), `outputs/` (figures and tables for the report), `notebooks/` (exploration only).
@@ -70,7 +71,7 @@ placeholder points formula (the user's real league is 9-cat; documented as an as
 N_SIM = 200,000 per run. Zero-minute rows are excluded from games played and availability.
 Default 10 starters (of 13). Headline: 50 drafted leagues x 30 ordered pairs. The picks differ in
 9.5% of decisions at k=10 and 9.0% at k=5. The held-out gain when they differ is +0.18 pts at k=10
-and +0.34 pts at k=5 of win probability (CIs in README). 21 tests pass.
+and +0.34 pts at k=5 of win probability (CIs in README). 22 tests pass.
 
 Next, in order:
 1. Experiment 2 (waiver add), Experiment 3 (sensitivity to availability and variance), convergence plots on real data.

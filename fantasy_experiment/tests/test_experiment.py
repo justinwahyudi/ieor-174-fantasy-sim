@@ -271,3 +271,24 @@ class TestMultiLeague(unittest.TestCase):
             self.assertAlmostEqual(r.Gain_All, sub.Holdout_Gain.mean())
             self.assertLessEqual(r.Share_Differ_CI_low, r.Share_Differ)
             self.assertGreaterEqual(r.Share_Differ_CI_high, r.Share_Differ)
+
+
+class TestBalanceBreakdown(unittest.TestCase):
+    def test_bins_partition_decisions_and_match_direct_shares(self):
+        from fantasy_experiment.multileague import balance_breakdown
+        rng = np.random.default_rng(0)
+        n = 600
+        detail = pd.DataFrame({"Starters": np.repeat([10, 5], n // 2),
+                               "League": np.tile(np.repeat(np.arange(1, 11), 30), 2),
+                               "Holdout_P_win_pts_pick": rng.uniform(0, 1, n),
+                               "Differ": rng.random(n) < 0.2,
+                               "Holdout_Gain": rng.normal(0.002, 0.001, n)})
+        detail.loc[~detail["Differ"], "Holdout_Gain"] = 0.0
+        detail.loc[0, "Holdout_P_win_pts_pick"] = 0.0          # edge value is binned
+        t = balance_breakdown(detail, np.random.default_rng(1), n_boot=200)
+        self.assertEqual(t.groupby("Starters")["Decisions"].sum().to_dict(), {5: 300, 10: 300})
+        row = t[(t.Starters == 10) & (t.Bin == "0.0-0.2")].iloc[0]
+        sub = detail[(detail.Starters == 10) & (detail.Holdout_P_win_pts_pick <= 0.2)]
+        self.assertAlmostEqual(row.Share_Differ, sub.Differ.mean())
+        self.assertAlmostEqual(row.Gain_When_Differ, sub.loc[sub.Differ, "Holdout_Gain"].mean())
+        self.assertLessEqual(row.Share_Differ_CI_low, row.Share_Differ)
